@@ -1,7 +1,7 @@
 ---
-title: "Presentation"
+title: "A/B Tests: The Essentials"
 author: "Lachlan Deer"
-institute: "Somewhere"
+institute: "Social Media and Web Analytics, Spring 2024"
 format: 
   beamer: 
     aspectratio: 32
@@ -9,34 +9,370 @@ format:
     theme: cousteau
 ---
 
-# In the morning
+```{r, echo=FALSE, message=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(broom)
+library(infer)
+library(vtable)
+library(car)
+```
 
-## Getting up
+## Learning Goals 
 
-- Turn off alarm
-- Get out of bed
+# Where Are We Now? 
 
-## Breakfast
+## Some slide
 
-- Eat eggs
-- Drink coffee
+# Example: Email Marketing
 
-# In the evening
+## An Email A/B Test
 
-## Dinner
+The email A/B test we will analyze was conducted by an online wine store. 
 
-- Eat spaghetti
-- Drink wine
+\begin{figure}
+\includegraphics[width=6cm]{figs/wine_store.png}
+\end{figure}
 
-## Going to sleep
+Source: Total Wine & More  
 
-- Get in bed
-- Count sheep
+## Wine retailer email test
 
-# Before I Sleep
+**Test setting**: email to retailer email list
 
-## I write equations
+**Unit**: email address
 
-$$
-y = x \beta + \varepsilon
-$$
+**Treatments**: email version A, email version B, holdout
+
+**Reponse**: open, click and 1-month purchase ($)
+
+**Selection**: all active customers
+
+**Assignment**: randomly assigned (1/3 each) 
+
+## Loading the Data
+
+```{r, message=FALSE}
+df <- read_csv("data/test_data.csv")
+
+head(df)
+```
+
+## Variables associated with the Test 
+
+- **Treatment indicator ($T_i$)**
+    - Which (randomized) treatment was received  
+     
+- **Outcomes ($Y_i$)**
+    - Outcome(s) measured for each customer, AKA the dependant variable
+    
+- **Baseline variables ($Z_i$)**
+    - Other stuff we know about customers **prior** to the randomization
+    - Sometimes called "pre-randomization covariates" or "observables"
+
+**Question**: For each variable in the dataset, which one of these categories does it fall into?
+
+# Analysis of A/B tests
+
+## The First Question
+
+\begin{center}
+\textbf{\alert{What is the first question you should ask about an A/B test?}}
+\end{center}
+
+* ~~Did the treatment affect the response?~~
+
+* Was the randomization done correctly? 
+
+\begin{center}
+How can we check randomization with the data at hand? 
+\end{center}
+
+## Randomization checks
+
+* Randomization checks confirm that the baseline variables are distributed similarly for the treatment and control groups. 
+    * These are the "Balance tests"
+
+**Averages of baseline variables by treatment group**
+
+```{r, echo = TRUE, eval = FALSE}
+df %>%
+    select(group, days_since, visits, past_purch, chard, sav_blanc, syrah, cab) %>%
+    group_by(group) %>%
+    summarize(across(everything(), list(mean = mean)))
+
+```
+
+## Randomization checks
+
+```{r, eval = TRUE}
+df %>%
+    select(group, days_since, visits, past_purch, chard, sav_blanc, syrah, cab) %>%
+    group_by(group) %>%
+    summarize(across(everything(), list(mean = mean)))
+
+```
+
+## Randomization checks
+
+The full distribution of baseline variables should also be the same between treatment groups.
+
+For example:
+
+```{r}
+df %>% 
+    filter(past_purch > 0) %>% 
+    ggplot(aes(x=past_purch, fill=group)) + 
+    geom_histogram(binwidth = 25, 
+                   alpha = 0.2, 
+                   position = "identity") +
+  xlim(0, 2000) + 
+  xlab("Past Purchases ($)") + 
+  ylab("Customers") + 
+  labs(title="Distribution of past purchases by treatment group")
+```
+
+## Randomization checks
+
+We can test for balance across treatments across each of our baseline variables: 
+
+```{r, echo = TRUE, eval = FALSE}
+# note: output omitted
+df %>%
+    select(group, days_since, visits, past_purch, chard, sav_blanc, syrah, cab) %>%
+    st(group = 'group', group.test = TRUE)
+```
+
+## Randomization checks 
+
+Randomization seems to check out!
+
+# Treatment Effects 
+
+## Did the treatments affect the responses?
+
+* Look at the means of outcome variables between treatments:
+
+```{r}
+df %>%
+    select(group, open, click, purch) %>%
+    group_by(group) %>%
+    summarize(across(everything(), list(mean = mean)))
+```
+* Email A looks better for opens and clicks. 
+* Both emails seem to generate higher average purchases than the control.
+
+##
+
+```{r}
+df %>%
+    filter(group != 'ctrl') %>%
+    mutate(click = as.factor(click)) %>%
+    ggplot() + 
+    geom_bar(aes(fill = click, y=as.numeric(click), x=group),
+             position="fill", stat="identity") +
+    theme_bw()
+```
+
+## Does email A have higher open rate than B?
+
+```{r}
+df %>%
+    filter(group != "ctrl") %>%
+    mutate(open = as.logical(open)) %>%
+    prop_test(open ~ group,
+              alternative = "greater")
+
+```
+
+## Does email A have higher open rate than B?
+
+```{r}
+mod <- lm(open ~ group, 
+          data = df %>% filter(group != "ctrl")
+          )
+tidy(mod)
+```
+
+## Does email A have higher click rate than B?
+
+```{r}
+mod <- lm(click ~ group, 
+          data = df %>% filter(group != "ctrl")
+          )
+tidy(mod)
+```
+
+## Does email A lead to higher average purchases than B?
+
+```{r}
+mod <- lm(purch ~ group, 
+          data = df %>% filter(group != "ctrl")
+          )
+tidy(mod)
+```
+
+## Do the emails lead to higher average purchases?
+
+```{r}
+mod <- lm(purch ~ group, 
+          data = df
+          )
+tidy(mod)
+```
+
+
+## Does email A lead to higher average purchases than B?
+
+```{r}
+linearHypothesis(mod, c("groupemail_A = groupemail_B"))
+```
+
+## Summary of findings 
+- Email A has significantly higher opens and clicks than email B, 
+    * But purchase are similar for both emails $\rightarrow$ Send email A!
+- Both emails generate higher average purchases than the control $\rightarrow$ Send emails! 
+
+# Design of A/B tests
+
+## Seven key questions 
+
+1. Business question
+2. Test setting (lab v. field)
+3. Unit of analysis (visit, customer, store)
+4. Treatments
+5. Response variable(s)
+6. Selection of units
+7. Assignment to treatments
+8. Sample size
+
+\begin{center}
+\textbf{\alert{If you can answer these questions, you have a test plan}}
+\end{center}
+
+## Email test
+
+**Business questions**: Does email work? If so which email is better? 
+
+**Test setting**: email to retailer customers
+
+**Unit**: email address
+
+**Treatments**: email version A, email version B, holdout
+
+**Reponse**: open, click and 30-day purchase ($)
+
+**Selection**: all active emails on email list (open in last 12 months)
+
+**Assignment**: randomly assigned (1/3 each)
+
+**Sample size**: 123,988 emails
+
+## Sample size planning
+
+* The standard recommendation is to set the sample size **in advance** and not test for significance until the data comes in.
+
+* WTF? Seriously? More on this later.
+
+* The recommended sample size is: 
+
+$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$
+
+## Sample size planning: key ideas
+
+- My data is noisy, so the group with the higher average in the test not always have the higher long-run response.   
+- There are two mistakes you can make: 
+    - Declare the treatments different, when they are the same (Type I)
+    - Declare the treatment the same, when they are different (Type II)
+- I want a low probability of both of those mistakes ($\alpha$, $\beta$) given a specific known difference between treatments ($d$) and noise in my response ($s$)
+
+$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$ 
+
+
+## Interpreting the sample size formula
+
+$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$  
+
+- More noise $\rightarrow$ larger sample size
+- Smaller difference to detect$\rightarrow$ larger sample size
+- Fewer errors $\rightarrow$ larger sample size
+
+## Sample size calculator in R
+
+Sample size to detect at \$1 difference in average 30-day purchases:
+```{r}
+power.t.test(sd=sd(df$purch), 
+             delta=1, 
+             sig.level=0.95, power=0.80)
+```
+
+## Sample size planning
+
+There is a slightly different formula for: 
+
+**Continous response (e.g. money, time on website)**  
+
+$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$
+
+**Binary response (e.g. conversions)**  
+
+$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 p (1-p)}{d^2} \right)$
+
+
+## Sample size calculator in R
+
+**Binary response**
+
+```{r}
+power.prop.test(p1=0.07, 
+                p2=0.07 + 0.01, 
+                sig.level=0.05, 
+                power=0.80)
+```
+
+## A word of caution about sample size calculators
+
+There are different  sample size formulas floating around. 
+
+* These formulas differ on what assumptions they may about what you are trying to do,
+* but it can be very hard to figure out what assumptions are being made 
+* (even for experts). 
+
+A decent sample size calculation will help you identify whether you are likely to end up with way too much or too little data. 
+
+
+## Tips for getting started with A/B testing
+
+- Keep it simple
+- Be prepared to find no effect
+- Choose "strong" treatments
+- Run many tests in fast succession 
+- You are searching for a few "golden tickets"
+
+# Recap
+
+## Summary
+
+- Three types of variables in test data
+    - Treatment (x's)  
+    - Response (y's)  
+    - Baseline variables (z's)  
+- Analyzing tests with binary response  
+    - Bar plot or mosaic plot 
+    - `prop.test()` for significance  
+- Analyzing tests with continuous response
+    - Dot plots or violin plots
+    - `t.test()` for significance
+- Eight key questions that define a test plan
+- Sample size calculations  
+    - Continous responses
+    - Binary responses
+    
+## Acknowledgements
+
+Elea Feit's [Advanced A/B testing workshop](https://eleafeit.github.io/ab_test/)
+
+## License
+
+TBD
