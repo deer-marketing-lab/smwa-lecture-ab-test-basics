@@ -366,7 +366,7 @@ A decent sample size calculation will help you identify whether you are likely t
     - `t.test()` for significance
 - Eight key questions that define a test plan
 - Sample size calculations  
-    - Continous responses
+    - Continuous responses
     - Binary responses
     
 ## Acknowledgements
