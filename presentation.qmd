@@ -2,6 +2,9 @@
 title: "A/B Tests: The Essentials"
 author: "Lachlan Deer"
 institute: "Social Media and Web Analytics, Spring 2024"
+execute: 
+  cache: true
+#urlcolor: blue
 format: 
   beamer: 
     aspectratio: 32
@@ -21,21 +24,84 @@ library(car)
 
 ## Learning Goals 
 
-# Where Are We Now? 
+1. Explain the basic principles of and A/B Test
+2. Analyze A/B test data to draw causal conclusions about a treatment
+3. Determine the appropriate sample size for an experiment
+4. Discuss challenges of shifting to an "experimentation first" company culture
 
-## Some slide
+## Where Are We Now? 
 
-# Example: Email Marketing
+So far we've discussed:
+
+* What makes a **good research question**
+* The importance of **research design** and thinking through the **identification** problem to fine the "right variation" to estimate casual effects
+* **Randomized Control Trials** as a means to generate the right variation
+
+Today: A/B tests $\leftrightarrow$ Randomized Control Trials online!
+
+* aka Online con
+
+## A/B Tests: The Basic Idea 
+
+\begin{figure}
+\includegraphics[width=9cm]{figs/ab_test_basic.png}
+\end{figure}
+
+Source: Kohavi (2019)
+
+## Example: Bing Ads with Site Links
+
+\begin{center}
+\textbf{Shound Bing add site links to ads that allow advertisers to offer multiple destinations on an ad?}
+\end{center}
+
+\begin{figure}
+\includegraphics[width=12cm]{figs/ab_test_ex_1.png}
+\end{figure}
+
+
+**\alert{Question:}** What are the pros and cons of each design?
+
+**\alert{Question:}** Which one created more revenue for Bing?
+
+<!---
+PRO - richer ads, users better informed
+con: can display less ads -- 3 vs 4, how fast page loads
+
+better? B, increased annual revenue by 100m US
+--->
+
+
+## Example: Bing Search with Underlined Links
+
+\begin{center}
+\textbf{Does underlining a link impact clickthrough?}
+\end{center}
+
+\begin{figure}
+\includegraphics[width=12cm]{figs/ab_test_ex_2.png}
+\end{figure}
+
+**\alert{Question:}** Which one created more revenue for Bing?
+
+<!---
+A was better
+underlines improve CTR for ads and organic so more revenue
+
+remark: most web designs dont have underlines despite lower CTR and longer time to click
+--->
+
+# Working Example: Email Marketing
 
 ## An Email A/B Test
 
 The email A/B test we will analyze was conducted by an online wine store. 
 
 \begin{figure}
-\includegraphics[width=6cm]{figs/wine_store.png}
+\includegraphics[width=10cm]{figs/wine_store.png}
 \end{figure}
 
-Source: Total Wine & More  
+Source: Total Wine & More
 
 ## Wine retailer email test
 
@@ -45,33 +111,37 @@ Source: Total Wine & More
 
 **Treatments**: email version A, email version B, holdout
 
-**Reponse**: open, click and 1-month purchase ($)
+**Reponse**: open, click on link and 1-month purchase ($)
 
 **Selection**: all active customers
 
 **Assignment**: randomly assigned (1/3 each) 
 
-## Loading the Data
+## Loading & Inspecting the Data
+\footnotesize
 
 ```{r, message=FALSE}
 df <- read_csv("data/test_data.csv")
 
-head(df)
+glimpse(df)
 ```
 
 ## Variables associated with the Test 
 
-- **Treatment indicator ($T_i$)**
-    - Which (randomized) treatment was received  
-     
-- **Outcomes ($Y_i$)**
-    - Outcome(s) measured for each customer, AKA the dependant variable
-    
-- **Baseline variables ($Z_i$)**
-    - Other stuff we know about customers **prior** to the randomization
-    - Sometimes called "pre-randomization covariates" or "observables"
+**Treatment indicator ($T_i$)**
 
-**Question**: For each variable in the dataset, which one of these categories does it fall into?
+- Which (randomized) treatment was received  
+     
+**Outcomes ($Y_i$)**
+
+- Outcome(s) measured for each customer, i.e. the outcome variable
+    
+**Baseline variables ($Z_i$)**
+
+- Other stuff we know about customers **prior** to the randomization
+- Sometimes called "pre-randomization covariates" or "observables"
+
+**\alert{Question:}** For each variable in the dataset, which one of these categories does it fall into?
 
 # Analysis of A/B tests
 
@@ -81,34 +151,27 @@ head(df)
 \textbf{\alert{What is the first question you should ask about an A/B test?}}
 \end{center}
 
-* ~~Did the treatment affect the response?~~
+~~Did the treatment affect the response?~~
 
-* Was the randomization done correctly? 
+Was the randomization done correctly? 
 
 \begin{center}
-How can we check randomization with the data at hand? 
+\textbf{\alertb{How can we check randomization with the data at hand?}} 
 \end{center}
 
 ## Randomization checks
 
-* Randomization checks confirm that the baseline variables are distributed similarly for the treatment and control groups. 
-    * These are the "Balance tests"
+**Randomization checks** confirm that the **baseline variables** are **distributed similarly** for the **treatment and control groups**. 
 
-**Averages of baseline variables by treatment group**
+* Also known as "**\alert{Balance tests}**"
 
-```{r, echo = TRUE, eval = FALSE}
-df %>%
-    select(group, days_since, visits, past_purch, chard, sav_blanc, syrah, cab) %>%
-    group_by(group) %>%
-    summarize(across(everything(), list(mean = mean)))
-
-```
-
-## Randomization checks
+## Randomization checks: Our data
+\footnotesize
 
 ```{r, eval = TRUE}
 df %>%
-    select(group, days_since, visits, past_purch, chard, sav_blanc, syrah, cab) %>%
+    select(group, days_since, visits, past_purch, 
+           chard, sav_blanc, syrah, cab) %>%
     group_by(group) %>%
     summarize(across(everything(), list(mean = mean)))
 
@@ -116,43 +179,30 @@ df %>%
 
 ## Randomization checks
 
-The full distribution of baseline variables should also be the same between treatment groups.
-
-For example:
-
-```{r}
-df %>% 
-    filter(past_purch > 0) %>% 
-    ggplot(aes(x=past_purch, fill=group)) + 
-    geom_histogram(binwidth = 25, 
-                   alpha = 0.2, 
-                   position = "identity") +
-  xlim(0, 2000) + 
-  xlab("Past Purchases ($)") + 
-  ylab("Customers") + 
-  labs(title="Distribution of past purchases by treatment group")
-```
-
-## Randomization checks
-
-We can test for balance across treatments across each of our baseline variables: 
+We can **test for balance** across treatments for each of our baseline variables: 
 
 ```{r, echo = TRUE, eval = FALSE}
 # note: output omitted
 df %>%
-    select(group, days_since, visits, past_purch, chard, sav_blanc, syrah, cab) %>%
+    select(group, days_since, visits, past_purch, 
+           chard, sav_blanc, syrah, cab) %>%
     st(group = 'group', group.test = TRUE)
 ```
 
 ## Randomization checks 
 
-Randomization seems to check out!
+\begin{center}
+\textbf{\alert{Randomization seems to check out!}}
+\end{center}
 
-# Treatment Effects 
+\vspace{2cm}
+
+... onto average treatment effects
+
 
 ## Did the treatments affect the responses?
 
-* Look at the means of outcome variables between treatments:
+Look at the means of outcome variables between treatments:
 
 ```{r}
 df %>%
@@ -160,12 +210,17 @@ df %>%
     group_by(group) %>%
     summarize(across(everything(), list(mean = mean)))
 ```
+
+**\alert{Question:}** What differences do you observe?
+
+<!---
 * Email A looks better for opens and clicks. 
 * Both emails seem to generate higher average purchases than the control.
+--->
 
 ##
 
-```{r}
+```{r, fig.align='center', out.width="10cm"}
 df %>%
     filter(group != 'ctrl') %>%
     mutate(click = as.factor(click)) %>%
@@ -230,16 +285,19 @@ linearHypothesis(mod, c("groupemail_A = groupemail_B"))
 ```
 
 ## Summary of findings 
-- Email A has significantly higher opens and clicks than email B, 
-    * But purchase are similar for both emails $\rightarrow$ Send email A!
-- Both emails generate higher average purchases than the control $\rightarrow$ Send emails! 
+
+Email A has significantly higher opens and clicks than email B, 
+
+* But purchase are similar for both emails $\rightarrow$ Send email A!
+
+Both emails generate higher average purchases than the control $\rightarrow$ Send emails! 
 
 # Design of A/B tests
 
 ## Seven key questions 
 
 1. Business question
-2. Test setting (lab v. field)
+2. Test setting (lab vs. field)
 3. Unit of analysis (visit, customer, store)
 4. Treatments
 5. Response variable(s)
@@ -271,108 +329,173 @@ linearHypothesis(mod, c("groupemail_A = groupemail_B"))
 
 ## Sample size planning
 
-* The standard recommendation is to set the sample size **in advance** and not test for significance until the data comes in.
+The standard recommendation is to set the sample size **in advance** and not test for significance until the data comes in.
 
-* WTF? Seriously? More on this later.
 
 * The recommended sample size is: 
 
-$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$
+$$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$
 
-## Sample size planning: key ideas
+## Sample size planning: Key ideas
 
-- My data is noisy, so the group with the higher average in the test not always have the higher long-run response.   
-- There are two mistakes you can make: 
-    - Declare the treatments different, when they are the same (Type I)
-    - Declare the treatment the same, when they are different (Type II)
-- I want a low probability of both of those mistakes ($\alpha$, $\beta$) given a specific known difference between treatments ($d$) and noise in my response ($s$)
+**Data is noisy**, so the group with the higher average in the test not always have the higher true response.   
 
-$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$ 
+There are **\alert{two mistakes}** you can make: 
+
+* **Type I error**:  Declare the treatments different, when they are the same ($\alpha$)
+* **Type II error**: Declare the treatment the same, when they are different ($\beta$)
+
+I want a low probability of both of those mistakes ($\alpha$, $\beta$) given a specific known difference between treatments ($d$) and noise in my response ($s$)
+
+$$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$ 
 
 
 ## Interpreting the sample size formula
 
-$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$  
+$$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$  
 
-- More noise $\rightarrow$ larger sample size
-- Smaller difference to detect$\rightarrow$ larger sample size
-- Fewer errors $\rightarrow$ larger sample size
+- More noise, $s^2$ $\rightarrow$ larger sample size
+- Smaller difference to detect, $d$ $\rightarrow$ larger sample size
+- Lower error rates, $(z_{1-\alpha/2} + z_\beta)$ $\rightarrow$ larger sample size
 
 ## Sample size calculator in R
 
 Sample size to detect at \$1 difference in average 30-day purchases:
-```{r}
-power.t.test(sd=sd(df$purch), 
-             delta=1, 
-             sig.level=0.95, power=0.80)
+
+```{r, eval=FALSE, echo = TRUE}
+power.t.test(sd = sd(df$purch), # ideally using 
+                                # pre-experiment data!
+             delta = 1, # minimum detectable effect
+             sig.level = 0.95, # alpha: industry standard
+             power=0.80 # 1 - beta: industry standard 
+             )
 ```
 
 ## Sample size planning
 
-There is a slightly different formula for: 
+* **\alert{Continous response}** (e.g. money, time on website) 
 
-**Continous response (e.g. money, time on website)**  
+$$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$
 
-$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$
+* **\alert{Binary response}** (e.g. conversions) 
 
-**Binary response (e.g. conversions)**  
-
-$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 p (1-p)}{d^2} \right)$
+$$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 p (1-p)}{d^2} \right)$$
 
 
 ## Sample size calculator in R
 
 **Binary response**
 
-```{r}
+```{r, eval=FALSE, echo = TRUE}
 power.prop.test(p1=0.07, 
-                p2=0.07 + 0.01, 
+                p2=0.07 + 0.01, # d = 0.01
                 sig.level=0.05, 
-                power=0.80)
+                power=0.80
+                )
 ```
 
 ## A word of caution about sample size calculators
 
-There are different  sample size formulas floating around. 
+There are **different sample size formulas floating around**. 
 
 * These formulas differ on what assumptions they may about what you are trying to do,
-* but it can be very hard to figure out what assumptions are being made 
-* (even for experts). 
+* It **can be very hard to figure out what assumptions are being made** 
+* ... even for experts 
+* So use some care before plugging numbers into an online calculator
 
-A decent sample size calculation will help you identify whether you are likely to end up with way too much or too little data. 
+A sample size calculation will help you identify the right amount of data you need for the problem at hand. 
+
+## Choosing Outcome Variables
+
+Agreeing on **outcome variables** is **not** as **easy** as it sounds
+
+* Should be defined using short-term metrics that predict long-term value 
+* (and hard to game)
+* Think about customer lifetime value, not immediate revenue
+
+* Use few but key metrics
+Conversion funnels use Pirate metrics: AARRR: acquisition, activation, retention, revenue, and referral
+
+## Most Ideas Fail
+
+Experiments at Microsoft ([paper](https://exp-platform.com/Documents/ExP_DMCaseStudies.pdf)):
+
+* 1/3 of ideas were positive ideas and statistically significant
+* 1/3 of ideas were flat, with no statistically significant difference
+* 1/3 of ideas were negative and statistically significant
+
+At Bing (well optimized), the success rate is lower: 10-20%.
+
+Implication: **Aim for small continuous improvements**
+
+## Twyman's Law
+
+\begin{center}
+\alertb{Any figure that looks interesting or different is usually wrong}
+\end{center}
+
+* Check before celebrating
+
+## Cultural Challenges
+
+\begin{center}
+"Experimentation is the least arrogant method of gaining knowledge" 
+
+- Isaac Asimov
+\end{center}
+
+Some folks believe controlled experiments threaten their jobs
+
+* "we know what to do and we're sure of it"
+* Reflex-like rejection of new knowledge because it contradicts entrenched norms, beliefs or paradigm
 
 
-## Tips for getting started with A/B testing
+## Ethical Issues
 
-- Keep it simple
-- Be prepared to find no effect
-- Choose "strong" treatments
-- Run many tests in fast succession 
-- You are searching for a few "golden tickets"
+**Controversy in treatment design**
+
+* Facebook's [emotional contagion](https://www.pnas.org/doi/full/10.1073/pnas.1320040111) experiment
+* Amazon and early [pricing experiments](https://www.bizjournals.com/seattle/stories/2000/09/25/daily21.html)
+* OK Cupid (Tinder for the previous generation) with [deception on match score](https://theblog.okcupid.com/we-experiment-on-human-beings-5dd9fe280cd5)
+
+**\alert{Minimal Risk Experimentation}**:
+
+> "the probability and magnitude of harm or discomfort anticipated in the research are not greater in and of themselves than those ordinarily encountered in daily life or during the performance of routine physical or psychological examinations or tests"
+
+When in doubt have an Institutional Review Board
 
 # Recap
 
 ## Summary
 
-- Three types of variables in test data
-    - Treatment (x's)  
-    - Response (y's)  
-    - Baseline variables (z's)  
-- Analyzing tests with binary response  
-    - Bar plot or mosaic plot 
-    - `prop.test()` for significance  
-- Analyzing tests with continuous response
-    - Dot plots or violin plots
-    - `t.test()` for significance
-- Eight key questions that define a test plan
-- Sample size calculations  
-    - Continuous responses
-    - Binary responses
+* A/B testing is running Randomized Control Trials online
+* Balance tests help confirm that randomization into treatment is indeed random
+* Statistical inference toolkit and linear regression enable us to estimate the treatment effects
+* The correct sample size for detecting a treatment effect is a crucial aspect of test design
+* There are challenges beyond the analysis of data that are important obstacles in implementation
     
 ## Acknowledgements
 
-Elea Feit's [Advanced A/B testing workshop](https://eleafeit.github.io/ab_test/)
+I have borrowed content and inspiration from the following sources:
 
-## License
+* Elea Feit's ["Advanced A/B testing workshop"](https://eleafeit.github.io/ab_test/)
 
-TBD
+* Ronny Kohavi's ["A/B Testing at Scale: Accelerating Software Innovation"](https://www.researchgate.net/publication/333071058_AB_Testing_at_Scale_Accelerating_Software_Innovation)
+
+## License & Citation
+\small
+Suggested Citation:
+
+```{r, engine='out', echo=TRUE, eval = FALSE}
+@misc{smwa2024_abtest,
+      title={"Social Media and Web Analytics: A/B Tests - Basics"},
+      author={Lachlan Deer},
+      year={2024},
+      url = "https://tisem-digital-marketing.github.io/2024-smwa"
+}
+```
+
+This course adheres to the principles of the [\alertb{Open Science Community of Tilburg University}](https://www.tilburguniversity.edu/research/open-science-community). 
+This initiative advocates for transparency and accessibility in research and teaching to all levels of society and thus creating more accountability and impact.
+
+This work is licensed under a [\alertb{Creative Commons Attribution-ShareAlike 4.0 International License}](http://creativecommons.org/licenses/by-sa/4.0/).
