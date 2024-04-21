@@ -24,7 +24,7 @@ library(car)
 
 ## Learning Goals 
 
-1. Explain the basic principles of and A/B Test
+1. Explain the basic principles of an A/B Test
 2. Analyze A/B test data to draw causal conclusions about a treatment
 3. Determine the appropriate sample size for an experiment
 4. Discuss challenges of shifting to an "experimentation first" company culture
@@ -34,12 +34,12 @@ library(car)
 So far we've discussed:
 
 * What makes a **good research question**
-* The importance of **research design** and thinking through the **identification** problem to fine the "right variation" to estimate casual effects
+* The importance of **research design** and thinking through the **identification** problem to find the "right variation" to estimate casual effects
 * **Randomized Control Trials** as a means to generate the right variation
 
 Today: A/B tests $\leftrightarrow$ Randomized Control Trials online!
 
-* aka Online con
+* aka Online Controlled Experiments
 
 ## A/B Tests: The Basic Idea 
 
@@ -336,6 +336,16 @@ The standard recommendation is to set the sample size **in advance** and not tes
 
 $$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$
 
+## Interpreting the sample size formula
+
+$$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$  
+
+- More noise, $s^2$ $\rightarrow$ larger sample size
+- Smaller difference to detect, $d$ $\rightarrow$ larger sample size
+- Lower error rates, $(z_{1-\alpha/2} + z_\beta)$ $\rightarrow$ larger sample size
+
+
+
 ## Sample size planning: Key ideas
 
 **Data is noisy**, so the group with the higher average in the test not always have the higher true response.   
@@ -348,15 +358,6 @@ There are **\alert{two mistakes}** you can make:
 I want a low probability of both of those mistakes ($\alpha$, $\beta$) given a specific known difference between treatments ($d$) and noise in my response ($s$)
 
 $$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$ 
-
-
-## Interpreting the sample size formula
-
-$$n_1 = n_2 \approx (z_{1-\alpha/2} + z_\beta)^2 \left( \frac{2 s^2}{d^2} \right)$$  
-
-- More noise, $s^2$ $\rightarrow$ larger sample size
-- Smaller difference to detect, $d$ $\rightarrow$ larger sample size
-- Lower error rates, $(z_{1-\alpha/2} + z_\beta)$ $\rightarrow$ larger sample size
 
 ## Sample size calculator in R
 
