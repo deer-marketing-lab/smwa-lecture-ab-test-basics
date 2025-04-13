@@ -1,7 +1,7 @@
 ---
 title: "A/B Tests: The Essentials"
 author: "Lachlan Deer"
-institute: "Social Media and Web Analytics, Spring 2024"
+institute: "Social Media and Web Analytics, Spring 2025"
 execute: 
   cache: true
 #urlcolor: blue
@@ -144,6 +144,12 @@ glimpse(df)
 **\alert{Question:}** For each variable in the dataset, which one of these categories does it fall into?
 
 # Analysis of A/B tests
+
+## The First Question
+
+\begin{center}
+\textbf{\alert{What is the first question you should ask about an A/B test?}}
+\end{center}
 
 ## The First Question
 
@@ -488,11 +494,11 @@ I have borrowed content and inspiration from the following sources:
 Suggested Citation:
 
 ```{r, engine='out', echo=TRUE, eval = FALSE}
-@misc{smwa2024_abtest,
+@misc{smwa2025_abtest,
       title={"Social Media and Web Analytics: A/B Tests - Basics"},
       author={Lachlan Deer},
-      year={2024},
-      url = "https://tisem-digital-marketing.github.io/2024-smwa"
+      year={2025},
+      url = "https://tisem-digital-marketing.github.io/2025-smwa"
 }
 ```
 
