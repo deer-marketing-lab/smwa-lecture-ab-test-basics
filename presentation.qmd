@@ -20,6 +20,7 @@ library(broom)
 library(infer)
 library(vtable)
 library(car)
+library(rstatix)
 ```
 
 ## Learning Goals 
@@ -242,7 +243,8 @@ df %>%
 df %>%
     filter(group != "ctrl") %>%
     mutate(open = as.logical(open)) %>%
-    prop_test(open ~ group,
+    # uses infer package's prop_test
+    infer::prop_test(open ~ group,
               alternative = "greater")
 
 ```
@@ -263,6 +265,46 @@ mod <- lm(click ~ group,
           data = df %>% filter(group != "ctrl")
           )
 tidy(mod)
+```
+
+## Doing it all at once with regression
+
+```{r}
+mod <- lm(click ~ group, 
+          data = df
+          )
+tidy(mod) %>%
+  mutate(across(c(estimate, statistic, std.error), ~round(., 5)))
+```
+
+
+## Does email A lead to different click thru than B?
+
+```{r}
+linearHypothesis(mod, c("groupemail_A = groupemail_B"))
+```
+
+
+## Pairwise testing with `rstatix`
+
+The **no** regression version, **uses proportions tests**
+
+```{r}
+props <-
+    df %>%
+    mutate(click = if_else(click == 1, "true", "false")) %>%
+    group_by(click = click, group) %>%
+    count() %>%
+    tidyr::pivot_wider(names_from = group, values_from = n, values_fill = 0) %>%
+    # Convert to a matrix as required by prop_test
+    tibble::column_to_rownames("click") %>%
+    as.matrix()
+
+props %>% 
+    # uses rstatix function -
+    # therefore different data structure above
+    pairwise_prop_test()
+
 ```
 
 ## Does email A lead to higher average purchases than B?
@@ -288,6 +330,19 @@ tidy(mod)
 
 ```{r}
 linearHypothesis(mod, c("groupemail_A = groupemail_B"))
+```
+
+## Pairwise testing with `rstatix`
+
+The **no** regression version, **uses t-tests**
+
+```{r}
+#| class-output: "smaller"
+library(rstatix)
+df %>% 
+    # uses rstatix function
+    pairwise_t_test(purch ~ group)
+
 ```
 
 ## Summary of findings 
